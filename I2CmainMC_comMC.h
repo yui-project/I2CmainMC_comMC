@@ -16,5 +16,5 @@ class I2CmainMC_comMC {
         I2CmainMC_comMC(Wire& i2c, uint8_t address);
         ~I2CmainMC_comMC();
         int sendData(uint8_t* data, int size);
-        int receiveData(uint8_t* buffer, int size);
+        int receiveData(std::vector<uint8_t>& buffer);
 };

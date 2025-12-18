@@ -31,7 +31,7 @@ uint8_t I2CmainMC_comMC::receiveOneByte() {
 
 int I2CmainMC_comMC::sendData(uint8_t* data, int size) {  
     beginTransmission();
-    for(int i = 0; i < size / 32 ; i++){
+    for(int i = 0; i < (size / 32) ; i++){
         uint8_t sendbuffer[32];
         for(int j = 0; j < 32; ++j) {
             sendbuffer[j] = data[i * 32 + j];
@@ -48,18 +48,17 @@ int I2CmainMC_comMC::sendData(uint8_t* data, int size) {
     }
 }
 
-int I2CmainMC_comMC::receiveData(uint8_t* buffer, int size) {
-    std::vector<uint8_t> recieveBuffer;
+int I2CmainMC_comMC::receiveData(std::vector<uint8_t>& buffer) {
     beginTransmission();
     while(available() > 0){
         std::vector<uint8_t> preBuffer = i2c.read();
-        recieveBuffer.insert(recieveBuffer.end(), preBuffer.begin(), preBuffer.end());
+        buffer.insert(buffer.end(), preBuffer.begin(), preBuffer.end());
     }
     endTransmission();
-    if(recieveBuffer.size() > 0){
+    if(buffer.size() > 0){
         //受信成功
-        return recieveBuffer.size();
-    }else if(recieveBuffer.size() == 0){
+        return buffer.size();
+    }else if(buffer.size() == 0){
         //受信失敗orデータなし
         return 0;
     }
