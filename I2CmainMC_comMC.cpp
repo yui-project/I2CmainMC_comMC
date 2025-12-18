@@ -1,7 +1,7 @@
 #include "I2CmainMC_comMC.h"
 
-I2CmainMC_comMC::I2CmainMC_comMC(Wire& i2c, uint8_t address) : i2c(i2c), Address(address) {
-    i2c.begin();
+I2CmainMC_comMC::I2CmainMC_comMC(TwoWire& i2c, uint8_t address) : i2c(i2c), Address(address) {
+
 }
 
 I2CmainMC_comMC::~I2CmainMC_comMC() {
@@ -23,45 +23,53 @@ void I2CmainMC_comMC::sendOneByte(uint8_t data) {
 }
 
 uint8_t I2CmainMC_comMC::receiveOneByte() {
-    beginTransmission();
-    uint8_t data = i2c.read();
-    endTransmission();
-    return data;
+    i2c.requestFrom(Address, (uint8_t)1);
+    if(i2c.available()){
+        uint8_t data = i2c.read();
+        return data;
+    }
+    return 0;
 }
 
 int I2CmainMC_comMC::sendData(uint8_t* data, int size) {  
-    beginTransmission();
-    for(int i = 0; i < (size / 32) ; i++){
-        uint8_t sendbuffer[32];
-        for(int j = 0; j < 32; ++j) {
-            sendbuffer[j] = data[i * 32 + j];
+    size_t offset = 0;
+    
+    while (offset < size) {
+        // 残りのデータ量と32バイトを比較し、小さい方を送信サイズとする
+        size_t chunkSize = size - offset;
+        if (chunkSize > 32) {
+            chunkSize = 32;
         }
-        i2c.write(sendbuffer, 32);
+
+        beginTransmission();
+        i2c.write(&data[offset], chunkSize);
+        
+        // 送信実行
+        if(endTransmission() != 0){
+            return false; // 送信失敗
+        }
+        
+        offset += chunkSize;
     }
-       
-    if(endTransmission() == 0){
-        //送信成功
-        return 1;
-    }else{
-        //送信失敗
-        return 0;
-    }
+    return true; // 全データ送信成功
 }
 
-int I2CmainMC_comMC::receiveData(std::vector<uint8_t>& buffer) {
-    beginTransmission();
-    while(available() > 0){
-        std::vector<uint8_t> preBuffer = i2c.read();
-        buffer.insert(buffer.end(), preBuffer.begin(), preBuffer.end());
+int I2CmainMC_comMC::receiveData(std::vector<uint8_t>& buffer, size_t readSize) {
+    // I2Cバスへデータ要求
+    // requestFromは読み取れたバイト数を返します
+    uint8_t count = i2c.requestFrom(Address, (uint8_t)readSize);
+    
+    if (count != readSize) {
+        return false; // 要求したサイズ分受信できなかった場合
     }
-    endTransmission();
-    if(buffer.size() > 0){
-        //受信成功
-        return buffer.size();
-    }else if(buffer.size() == 0){
-        //受信失敗orデータなし
-        return 0;
+
+    buffer.clear(); // バッファを一度空にする
+    buffer.reserve(readSize); // メモリ確保の効率化
+
+    while(i2c.available() > 0){
+        buffer.push_back(i2c.read());
     }
+    return buffer.size();
 }
 
 int I2CmainMC_comMC::available() {
